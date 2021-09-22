@@ -1,0 +1,43 @@
+syntax = "proto3";
+package gateway;
+
+option go_package = "/gateway";
+
+import "google/api/annotations.proto";
+
+message StringMessage {
+    string value = 1;
+    int32 code = 2;
+}
+
+message FSReq {
+    string name = 1;
+    string file = 2;
+  }
+  
+  message FSResp {
+    bool status = 1;
+    string message = 2;
+  }
+  
+
+
+service Gateway {
+   rpc Echo(StringMessage) returns (StringMessage) {
+       option (google.api.http) = {
+           post: "/v1/example/echo"
+           body: "*"
+       };
+   }
+   rpc Gcho(StringMessage) returns (StringMessage){
+        option (google.api.http) = {
+            get: "/v1/example/gcho/{value}/{code}"
+        };
+   }
+   rpc Upload(FSReq) returns (FSResp) {
+    option (google.api.http) = {
+        post: "/v1/example/upload"
+        body: "*"
+    };
+   }
+}

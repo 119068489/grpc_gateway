@@ -1,0 +1,30 @@
+创建etcd集群：
+etcd --name infra1 --listen-client-urls http://127.0.0.1:2379 --advertise-client-urls http://127.0.0.1:2379 --listen-peer-urls http://127.0.0.1:12380 --initial-advertise-peer-urls http://127.0.0.1:12380 --initial-cluster-token etcd-cluster-1 --initial-cluster infra1=http://127.0.0.1:12380 --initial-cluster-state new
+
+扩容etcd集群
+etcdctl --endpoints=http://127.0.0.1:2379 member add infra2 --peer-urls=http://127.0.0.1:22380
+
+etcdctl --endpoints=http://127.0.0.1:2379 member add infra3 --peer-urls=http://127.0.0.1:32380
+
+etcdctl --endpoints=http://127.0.0.1:2379 member add infra4 --peer-urls=http://127.0.0.1:42380
+
+启动加入etcd集群
+etcd --name infra2 --listen-client-urls http://127.0.0.1:22379 --advertise-client-urls http://127.0.0.1:22379 --listen-peer-urls http://127.0.0.1:22380 --initial-advertise-peer-urls http://127.0.0.1:22380 --initial-cluster-token etcd-cluster-1 --initial-cluster infra2=http://127.0.0.1:22380,infra1=http://127.0.0.1:12380 --initial-cluster-state existing
+
+etcd --name infra3 --listen-client-urls http://127.0.0.1:32379 --advertise-client-urls http://127.0.0.1:32379 --listen-peer-urls http://127.0.0.1:32380 --initial-advertise-peer-urls http://127.0.0.1:32380 --initial-cluster-token etcd-cluster-1 --initial-cluster infra3=http://127.0.0.1:32380,infra2=http://127.0.0.1:22380,infra1=http://127.0.0.1:12380 --initial-cluster-state existing
+
+etcd --name infra4 --listen-client-urls http://127.0.0.1:42379 --advertise-client-urls http://127.0.0.1:42379 --listen-peer-urls http://127.0.0.1:42380 --initial-advertise-peer-urls http://127.0.0.1:42380 --initial-cluster-token etcd-cluster-1 --initial-cluster infra4=http://127.0.0.1:42380,infra3=http://127.0.0.1:32380,infra2=http://127.0.0.1:22380,infra1=http://127.0.0.1:12380 --initial-cluster-state existing
+
+
+
+旧的集群启动
+etcd --name infra3 --listen-client-urls http://127.0.0.1:32379 --advertise-client-urls http://127.0.0.1:32379 --listen-peer-urls http://127.0.0.1:32380 --initial-advertise-peer-urls http://127.0.0.1:32380 --initial-cluster-token etcd-cluster-1 --initial-cluster infra3=http://127.0.0.1:32380,infra2=http://127.0.0.1:22380,infra1=http://127.0.0.1:12380 --initial-cluster-state existing
+
+etcd --name infra2 --listen-client-urls http://127.0.0.1:22379 --advertise-client-urls http://127.0.0.1:22379 --listen-peer-urls http://127.0.0.1:22380 --initial-advertise-peer-urls http://127.0.0.1:22380 --initial-cluster-token etcd-cluster-1 --initial-cluster infra3=http://127.0.0.1:32380,infra2=http://127.0.0.1:22380,infra1=http://127.0.0.1:12380 --initial-cluster-state existing
+
+etcd --name infra1 --listen-client-urls http://127.0.0.1:2379 --advertise-client-urls http://127.0.0.1:2379 --listen-peer-urls http://127.0.0.1:12380 --initial-advertise-peer-urls http://127.0.0.1:12380 --initial-cluster-token etcd-cluster-1 --initial-cluster infra3=http://127.0.0.1:32380,infra2=http://127.0.0.1:22380,infra1=http://127.0.0.1:12380 --initial-cluster-state existing
+
+移除节点
+etcdctl --endpoints=http://127.0.0.1:2379 member remove 18aac8d6c1ae0854
+
+

@@ -1,0 +1,8 @@
+{{/* 此模板用于给实体添加一些字段。 */}}
+{{ define "model/fields/additional" }}
+    {{- /* 给 "Card" 实体添加静态字段。 */}}
+    {{- if eq $.Name "Card" }}
+        // 通过模板定义静态字段。
+        StaticField string `json:"static_field,omitempty"`
+    {{- end }}
+{{ end }}

@@ -1,0 +1,21 @@
+{{/* 下一行的作用是，告诉 Intellij/GoLand 等IDE，基于 gen.Graph 类型来启用自动补全功能。 */}}
+{{/* gotype: entgo.io/ent/entc/gen.Graph */}}
+
+{{ define "stringer" }}
+
+{{/* 给生成的文件添加头部信息 */}}
+{{ $pkg := base $.Config.Package }}
+{{ template "header" $ }}
+
+{{/* 循环遍历所有节点，并添加对  "GoStringer" 接口的实现 */}}
+{{ range $n := $.Nodes }}
+    {{ $receiver := $n.Receiver }}
+    func ({{ $receiver }} *{{ $n.Name }}) GoString() string {
+        if {{ $receiver }} == nil {
+            return fmt.Sprintf("{{ $n.Name }}(nil)")
+        }
+        return {{ $receiver }}.String()
+    }
+{{ end }}
+
+{{ end }}

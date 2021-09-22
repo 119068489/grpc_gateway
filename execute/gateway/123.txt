@@ -1,0 +1,14 @@
+redis
+
+1¡¢rediogo ±ê×¼go redis ¹Ù·½¿â
+	https://github.com/garyburd/redigo/redis    
+	go get github.com/garyburd/redigo/redis
+
+2¡¢go-redis/redis
+	https://github.com/go-redis/redis
+	https://godoc.org/github.com/go-redis/redis
+	go get -u github.com/go-redis/redis
+
+
+SQLite
+	github.com/mattn/go-sqlite3

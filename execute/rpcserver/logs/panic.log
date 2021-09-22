@@ -1,0 +1,16 @@
+2021/08/17 10:44:18.545  ================================================
+@@ runtime error: invalid memory address or nil pointer dereference
+F:/go/src/grpc_gateway/easygo/exception.go:65
+F:/go/src/grpc_gateway/easygo/exception.go:80
+F:/go/src/grpc_gateway/easygo/goroutine.go:67
+F:/go/src/grpc_gateway/easygo/manager_server_info.go:23
+F:/go/src/grpc_gateway/easygo/manager_etcd.go:202
+F:/go/src/grpc_gateway/easygo/goroutine.go:84
+2021/08/17 10:45:32.714  ================================================
+@@ runtime error: invalid memory address or nil pointer dereference
+F:/go/src/grpc_gateway/easygo/exception.go:65
+F:/go/src/grpc_gateway/easygo/exception.go:80
+F:/go/src/grpc_gateway/easygo/goroutine.go:67
+F:/go/src/grpc_gateway/easygo/manager_server_info.go:23
+F:/go/src/grpc_gateway/easygo/manager_etcd.go:202
+F:/go/src/grpc_gateway/easygo/goroutine.go:84
