@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/astaxie/beego/logs"
-
 	"github.com/garyburd/redigo/redis"
+	uuid "github.com/satori/go.uuid"
 )
 
 var (
@@ -435,59 +435,73 @@ func (c RedisCache) Scan(str string) ([]string, error) {
 	return keys, nil
 }
 
-//单key取得redis分布式锁没有有重试机制
-func (c RedisCache) DoRedisLockNoRetry(key string, timeout int32) (err error) {
-	//从连接池中娶一个con链接，pool可以自己定义。
+//单key取得redis分布式锁没有重试机制
+func (c RedisCache) DoRedisLockNoRetry(key string, timeout int32) (value string, err error) {
+	//从连接池中取一个con链接，pool可以自己定义。
 	conn := c.pool.Get()
 	defer conn.Close()
-	//这里需要redis.String包一下，才能返回redis.ErrNil
-	_, err = redis.String(conn.Do("set", key, 1, "ex", timeout, "nx"))
-	if err != nil {
 
+	//获取随机值
+	code := uuid.NewV4().String()
+	//这里需要redis.String包一下，才能返回redis.ErrNil
+	_, err = redis.String(conn.Do("set", key, code, "ex", timeout, "nx"))
+	if err != nil {
 		s := fmt.Sprintf("DoRedisLockNoRetry 单key取得redis分布式无重试机制锁失败,redis key is %v", key)
 		logs.Error(s)
-		return err
+		return "", err
 	}
-	return nil
+	return code, nil
 }
 
 //单key取得redis分布式锁有重试机制
-func (c RedisCache) DoRedisLockWithRetry(key string, timeout int32) (err error) {
+func (c RedisCache) DoRedisLockWithRetry(key string, acquireTimeout, lockTimeOut int32) (value string, err error) {
 	//重试退出开始时间
 	nowStartTime := time.Now().Unix()
 
-	err1 := c.DoRedisLockNoRetry(key, timeout)
+	code, err1 := c.DoRedisLockNoRetry(key, lockTimeOut)
 
 	if err1 != nil {
 
 		// 需要阻塞重试取得锁
 		for {
-			errLoop := c.DoRedisLockNoRetry(key, timeout)
+			code, errLoop := c.DoRedisLockNoRetry(key, lockTimeOut)
 
 			if errLoop == nil {
-				return nil
+				return code, nil
 			}
 
 			//取得锁或者重试超过8秒左右退出
 			//最好要小于过期时间几秒左右,目前这个重试锁过期时间设置的可以根据业务来设置:操作设置10秒,定时设置20秒
 			//过期时间保证业务在此时间内执行完毕,避免有些定时业务未执行完毕而时间过期
-			if time.Now().Unix()-nowStartTime > 8 {
+			if time.Now().Unix()-nowStartTime > int64(acquireTimeout) {
 				s := fmt.Sprintf("DoRedisLockWithRetry 单key取得redis分布式有重试机制锁失败,redis key is %v,重试时间%v", key, time.Now().Unix()-nowStartTime)
 				logs.Error(s)
-				return redis.ErrNil
+				return "", redis.ErrNil
 			}
 
+			time.Sleep(time.Second)
 		}
 	}
 
-	return nil
+	return code, nil
 }
 
 //单key分布式解锁
 //如果是err说明业务太长 已过超时时间 key失效,所以上层业务不用关心 继续可以获得锁(根据业务调整过期时间)
-func (c RedisCache) DoRedisUnlock(key string) {
+func (c RedisCache) DoRedisUnlock(key string, value string) {
+	code, err := c.Get(key)
+	if err != nil && err != redis.ErrNil {
+		s := fmt.Sprintf("DoRedisUnlock 单key分布式解锁失败,查询key错误：%v,redis key is %v", err.Error(), key)
+		logs.Error(s)
+		return
+	}
+	if code != value {
+		s := fmt.Sprintf("DoRedisUnlock 单key分布式解锁失败,原key值已改变,可以无视错误,redis key is %v", key)
+		logs.Error(s)
+		return
+	}
 
-	_, err := c.Delete(key)
+	_, err = c.Delete(key)
 	//如果是err说明业务太长 已过超时时间 所以上层业务不用关心 继续可以获得锁
 	if err != nil {
 		s := fmt.Sprintf("DoRedisUnlock 单key分布式解锁失败,可以无视错误,redis key is %v", key)
@@ -497,62 +511,85 @@ func (c RedisCache) DoRedisUnlock(key string) {
 }
 
 //多key取得redis分布式锁没有有重试机制
-func (c RedisCache) DoBatchRedisLockNoRetry(keys []string, timeout int32) (err error) {
-	//从连接池中娶一个con链接，pool可以自己定义。
+func (c RedisCache) DoBatchRedisLockNoRetry(keys []string, timeout int32) (keyMap map[string]string, err error) {
+	//从连接池中取一个con链接，pool可以自己定义。
 	conn := c.pool.Get()
 	defer conn.Close()
 
+	codeMap := make(map[string]string)
 	//因为传入得是字符串数组不是字符串指针数组所以用以下的循环方式
 	for i := 0; i < len(keys); i++ {
-
+		//获取随机值
+		code := uuid.NewV4().String()
 		//这里需要redis.String包一下，才能返回redis.ErrNil
-		_, err = redis.String(conn.Do("set", keys[i], 1, "ex", timeout, "nx"))
-		if err != nil {
-			return err
+		_, err = redis.String(conn.Do("set", keys[i], code, "ex", timeout, "nx"))
+		if err == nil {
+			codeMap[keys[i]] = code
 		}
 	}
-	return nil
+	return codeMap, nil
 }
 
 //多key取得redis分布式锁有重试机制
-func (c RedisCache) DoBatchRedisLockWithRetry(keys []string, timeout int32) (err error) {
+func (c RedisCache) DoBatchRedisLockWithRetry(keys []string, timeout int32) (keyMap map[string]string, err error) {
 
 	//重试退出开始时间
 	nowStartTime := time.Now().Unix()
-	err1 := c.DoBatchRedisLockNoRetry(keys, timeout)
 
-	if err1 != nil {
-		// 需要阻塞重试取得锁
-		for {
-
-			errLoop := c.DoBatchRedisLockNoRetry(keys, timeout)
-
-			if errLoop == nil {
-				//logs.Info(lockCnt)
-				return nil
-			}
-
-			//取得锁或者重试超过8秒左右退出
-			//最好要小于过期时间几秒左右,目前这个重试锁过期时间设置的可以根据业务来设置:操作设置10秒,定时设置20秒
-			//过期时间保证业务在此时间内执行完毕,避免有些定时业务未执行完毕而时间过期
-			if time.Now().Unix()-nowStartTime > 8 {
-				s := fmt.Sprintf("DoBatchRedisLockWithRetry 多key取得redis分布式有重试机制锁失败,redis keys is %v,重试时间%v", keys, time.Now().Unix()-nowStartTime)
-				logs.Error(s)
-				return redis.ErrNil
+	retuenMap := make(map[string]string)
+	var reKeys []string
+	reKeys = keys
+loop:
+	codesMap, _ := c.DoBatchRedisLockNoRetry(reKeys, timeout)
+	if len(codesMap) < len(keys) {
+		rangeKey := reKeys
+		reKeys = nil
+		for _, k := range rangeKey {
+			if codesMap[k] == "" {
+				reKeys = append(reKeys, k)
+			} else {
+				retuenMap[k] = codesMap[k]
 			}
 		}
 	}
 
-	return nil
+	//取得锁或者重试超过8秒左右退出
+	//最好要小于过期时间几秒左右,目前这个重试锁过期时间设置的可以根据业务来设置:操作设置10秒,定时设置20秒
+	//过期时间保证业务在此时间内执行完毕,避免有些定时业务未执行完毕而时间过期
+	if time.Now().Unix()-nowStartTime > 8 {
+		s := fmt.Sprintf("DoBatchRedisLockWithRetry 多key取得redis分布式有重试机制锁失败,redis keys is %v,重试时间%v", keys, time.Now().Unix()-nowStartTime)
+		logs.Error(s)
+		return retuenMap, nil
+	}
+
+	if len(retuenMap) < len(keys) {
+		goto loop
+	}
+
+	return codesMap, nil
 }
 
 //多key分布式解锁
 //如果是err说明业务太长 已过超时时间 所以上层业务不用关心 继续可以获得锁(根据业务调整过期时间)
-func (c RedisCache) DoBatchRedisUnlock(keys []string) {
+func (c RedisCache) DoBatchRedisUnlock(keyMap map[string]string) {
+	// for _, k := range keyMap {
 
-	_, err := c.Delete(redis.Args{}.Add().AddFlat(keys)...)
+	// }
+	// code, err := c.Get(key)
+	// if err != nil && err != redis.ErrNil {
+	// 	s := fmt.Sprintf("DoRedisUnlock 单key分布式解锁失败,查询key错误：%v,redis key is %v", err.Error(), key)
+	// 	logs.Error(s)
+	// 	return
+	// }
+	// if code != value {
+	// 	s := fmt.Sprintf("DoRedisUnlock 单key分布式解锁失败,原key值已改变,可以无视错误,redis key is %v", key)
+	// 	logs.Error(s)
+	// 	return
+	// }
+
+	_, err := c.Delete(redis.Args{}.Add().AddFlat(keyMap)...)
 	if err != nil {
-		s := fmt.Sprintf("DoBatchRedisUnlock 多key分布式解锁失败,可以无视错误,redis keys is %v", keys)
+		s := fmt.Sprintf("DoBatchRedisUnlock 多key分布式解锁失败,可以无视错误,redis keys is %v", keyMap)
 		logs.Error(s)
 		logs.Error(err)
 	}
