@@ -67,8 +67,8 @@ func HttpRun() {
 	opts := []grpc.DialOption{grpc.WithInsecure()}
 	tracer, _ := easygo.NewJaegerTracer(easygo.Server_Name, "localhost:6831") //创建jaeger tracer
 
-	//拦截器注册
-	opts = append(opts, easygo.DialOption(tracer)) //grpc.WithChainUnaryInterceptor(Interceptor), 自定义拦截器
+	//拦截器注
+	opts = append(opts, easygo.DialOption(tracer), grpc.WithChainUnaryInterceptor(Interceptor)) //自定义拦截器
 
 	ps := PServerInfoMgr.GetIdelServer(easygo.SERVER_TYPE_RPC) //获取rpc服务器配置
 	adds := "localhost:9192"
