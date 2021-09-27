@@ -94,3 +94,17 @@ func LogException(recoverVal interface{}, traceBack string) string {
 	// }
 	return text
 }
+
+func Try(fun func(), handler ...func(interface{})) {
+	handler = append(handler, RcoverErr)
+	defer func() {
+		if err := recover(); err != nil {
+			handler[0](err)
+		}
+	}()
+	fun()
+}
+
+func RcoverErr(err interface{}) {
+	logs.Error(err)
+}

@@ -6,8 +6,10 @@ import (
 	"grpc_gateway/easygo"
 	pbgw "grpc_gateway/proto/pb/gateway"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -30,7 +32,7 @@ func Entry(flagSet *flag.FlagSet, args []string) {
 	easygo.InitExistServer(PClient3KVMgr, PServerInfoMgr, PServerInfo)
 
 	var serveFunctions = []func(){}
-	serveFunctions = append(serveFunctions, SignHandle, StartGwServer, HttpRun)
+	serveFunctions = append(serveFunctions, SignHandle, StartGwServer, HttpRun, PprofMonitor)
 
 	jobs := []easygo.IGoroutine{}
 	for _, f := range serveFunctions {
@@ -108,6 +110,16 @@ func StartGwServer() {
 	r.HandleFunc("/", getEntry).Methods("GET")
 	r.HandleFunc("/", proxyUpEntry).Methods("POST")      //上传请求
 	r.PathPrefix("/v1/example/").HandlerFunc(proxyEntry) //前缀匹配rpc请求
-	err := http.ListenAndServe(":9190", r)               //对外的端口
+
+	err := http.ListenAndServe(":9190", r) //对外的端口
 	easygo.PanicError(err)
+}
+
+func PprofMonitor() {
+	var err error
+	addr := ":" + strconv.Itoa(6060)
+
+	err = http.ListenAndServe(addr, nil)
+	easygo.PanicError(err)
+
 }

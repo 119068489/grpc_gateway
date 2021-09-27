@@ -75,7 +75,7 @@ func InterfersToInt64s(src []interface{}, dest *[]int64) {
 }
 
 func InterfersToInt64(src []interface{}) []int64 {
-	var dest []int64
+	dest := make([]int64, 0, len(src))
 	for _, val := range src {
 		if v, ok := val.(int64); ok {
 			dest = append(dest, v)
@@ -219,4 +219,30 @@ func RandomString(l int) string {
 
 func RandInt(min int, max int) int {
 	return min + rand.Intn(max-min)
+}
+
+// Fib 是一个计算第n个斐波那契数的函数
+func Fib(n int) int {
+	if n < 2 {
+		return n
+	}
+	return Fib(n-1) + Fib(n-2)
+}
+
+//判断2个字符串切片是否相等
+func StringSliceEqual(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	if (a == nil) != (b == nil) {
+		return false
+	}
+
+	for i, v := range a {
+		if v != b[i] {
+			return false
+		}
+	}
+	return true
 }

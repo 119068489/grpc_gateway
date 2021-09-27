@@ -29,10 +29,13 @@ const (
 )
 
 func main() {
+	for {
+		<-time.NewTicker(time.Second).C
+		easygo.ProtectRun(httpPost)
+		easygo.ProtectRun(httpGet)
+		easygo.ProtectRun(rpcReq)
+	}
 
-	// easygo.ProtectRun(httpPost)
-	easygo.ProtectRun(httpGet)
-	// easygo.ProtectRun(rpcReq)
 	// easygo.ProtectRun(UploadPost)
 	// easygo.ProtectRun(rpcUpload)
 	// easygo.ProtectRun(UploadFilePost)
