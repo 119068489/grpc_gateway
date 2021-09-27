@@ -27,12 +27,13 @@ func (s *Server) Echo(ctx context.Context, in *gateway.StringMessage) (*gateway.
 func (s *Server) Gcho(ctx context.Context, in *gateway.StringMessage) (*gateway.StringMessage, error) {
 	logs.Info("request: ", in.Value, in.Code)
 
-	newCtx, end := easygo.Start("RpcReq", ctx)
-	err := httpReq(newCtx)
-	end(easygo.SpanWithError(err), easygo.SpanWithLog("httprequet", "ok1"))
-	if err != nil {
-		logs.Error(err)
-	}
+	//屏蔽链路追踪采集代码
+	// newCtx, end := easygo.Start("RpcReq", ctx)
+	// err := httpReq(newCtx)
+	// end(easygo.SpanWithError(err), easygo.SpanWithLog("httprequet", "ok1"))
+	// if err != nil {
+	// 	logs.Error(err)
+	// }
 
 	return &gateway.StringMessage{Value: "Hello " + in.Value, Code: in.Code}, nil
 }
