@@ -5,7 +5,6 @@ import (
 	"flag"
 	"grpc_gateway/easygo"
 	pbgw "grpc_gateway/proto/pb/gateway"
-	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
@@ -32,7 +31,7 @@ func Entry(flagSet *flag.FlagSet, args []string) {
 	easygo.InitExistServer(PClient3KVMgr, PServerInfoMgr, PServerInfo)
 
 	var serveFunctions = []func(){}
-	serveFunctions = append(serveFunctions, SignHandle, StartGwServer, HttpRun, PprofMonitor)
+	serveFunctions = append(serveFunctions, SignHandle, GatewayServer, ProxyServer, PprofMonitor)
 
 	jobs := []easygo.IGoroutine{}
 	for _, f := range serveFunctions {
@@ -60,34 +59,6 @@ func SignHandle() {
 	}
 }
 
-func HttpRun() {
-	ctx := context.Background()
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	mux := runtime.NewServeMux()
-	opts := []grpc.DialOption{grpc.WithInsecure()}
-	tracer, _ := easygo.NewJaegerTracer(easygo.Server_Name, "localhost:6831") //创建jaeger tracer
-
-	//拦截器注
-	opts = append(opts, easygo.DialOption(tracer), grpc.WithChainUnaryInterceptor(Interceptor)) //自定义拦截器
-
-	ps := PServerInfoMgr.GetIdelServer(easygo.SERVER_TYPE_RPC) //获取rpc服务器配置
-	adds := "localhost:9192"
-	if ps != nil {
-		adds = ps.InternalIP
-	} else {
-		logs.Error("没有发现rpc服务器")
-	}
-
-	echoEndpoint := flag.String("echo_endpoint", adds, "endpoint of Gateway")
-	err := pbgw.RegisterGatewayHandlerFromEndpoint(ctx, mux, *echoEndpoint, opts)
-	easygo.PanicError(err)
-
-	logs.Info("http服务开启")
-	http.ListenAndServe(easygo.Server_IP, mux)
-}
-
 // Interceptor 自定义拦截器
 func Interceptor(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
 	// logs.Info("method[%v];req[%v];reply[%v];cc[%+v];invoker[%T];\n", method, req, reply, cc, invoker)
@@ -105,21 +76,44 @@ func Interceptor(ctx context.Context, method string, req, reply interface{}, cc 
 	return err
 }
 
-func StartGwServer() {
+func GatewayServer() {
+	ctx := context.Background()
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	mux := runtime.NewServeMux()
+	opts := []grpc.DialOption{grpc.WithInsecure()}
+	tracer, _ := easygo.NewJaegerTracer(easygo.Server_Name, "localhost:6831") //创建jaeger tracer
+
+	//拦截器注
+	opts = append(opts, easygo.DialOption(tracer), grpc.WithChainUnaryInterceptor(Interceptor)) //自定义拦截器
+
+	ps := PServerInfoMgr.GetIdelServer(easygo.SERVER_TYPE_RPC) //获取rpc服务器配置
+	adds := "localhost:9192"
+	if ps != nil {
+		adds = ps.InternalIP
+	} else {
+		logs.Error("No found rpc server,Default listening %s", adds)
+	}
+
+	echoEndpoint := flag.String("echo_endpoint", adds, "endpoint of Gateway")
+	err := pbgw.RegisterGatewayHandlerFromEndpoint(ctx, mux, *echoEndpoint, opts)
+	easygo.PanicError(err)
+
+	easygo.ServerRun(easygo.Server_IP, mux, "Gateway server")
+}
+
+func ProxyServer() {
 	r := mux.NewRouter()
 	r.HandleFunc("/", getEntry).Methods("GET")
 	r.HandleFunc("/", proxyUpEntry).Methods("POST")      //上传请求
 	r.PathPrefix("/v1/example/").HandlerFunc(proxyEntry) //前缀匹配rpc请求
 
-	err := http.ListenAndServe(":9190", r) //对外的端口
-	easygo.PanicError(err)
+	addr := ":9190"
+	easygo.ServerRun(addr, r, "Proxy server") //对外的端口
 }
 
 func PprofMonitor() {
-	var err error
 	addr := ":" + strconv.Itoa(6060)
-
-	err = http.ListenAndServe(addr, nil)
-	easygo.PanicError(err)
-
+	easygo.ServerRun(addr, nil, "Pprof Server")
 }

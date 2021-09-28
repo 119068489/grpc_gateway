@@ -29,7 +29,7 @@ func Entry(flagSet *flag.FlagSet, args []string) {
 	easygo.InitExistServer(PClient3KVMgr, PServerInfoMgr, PServerInfo)
 
 	var serveFunctions = []func(){}
-	serveFunctions = append(serveFunctions, SignHandle, RpcRun)
+	serveFunctions = append(serveFunctions, SignHandle, RpcServerRun)
 
 	jobs := []easygo.IGoroutine{}
 	for _, f := range serveFunctions {
@@ -57,7 +57,7 @@ func SignHandle() {
 	}
 }
 
-func RpcRun() {
+func RpcServerRun() {
 
 	lis, err := net.Listen("tcp", easygo.Server_IP)
 
@@ -69,7 +69,7 @@ func RpcRun() {
 
 	s := grpc.NewServer(easygo.ServerOption(tracer))
 	gateway.RegisterGatewayServer(s, &Server{})
-	log.Println("rpc服务已经开启")
+	logs.Info("Rpc server start to listen %s", easygo.Server_IP)
 
 	s.Serve(lis)
 }

@@ -33,7 +33,7 @@ func (rmSelf *RedisManager) Init(me IRedisManager) {
 	pass := REDIS_SERVER_PASS
 	db := REDIS_SERVER_DATABASE
 	rmSelf.RedisCache = NewRedisCache(db, host, REDIS_DEFAULT, pass)
-	logs.Info("连接redis服务器成功:" + host)
+	logs.Info("Successfully connected to the Redis server %s", host)
 
 }
 
