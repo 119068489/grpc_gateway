@@ -45,7 +45,7 @@ func (c *Client3KVManager) StartClintTV3() {
 		DialTimeout: 5 * time.Second,
 	})
 	PanicError(err)
-	logs.Info("Client3KV 连接etcd服务器...")
+	logs.Info("Client3KV Connect to etcd server %s", ETCD_CENTER_ADDR)
 	c.CreateLease()
 	c.SetLeaseTime(10)
 	c.UpdateLeaseTime()
@@ -56,10 +56,10 @@ func (c *Client3KVManager) StartClintTV3() {
 	//通过租约put
 	_, err = c.PClient3KV.Put(context.TODO(), ETCD_SERVER_PATH+c.ServerType+"/"+AnytoA(c.ServerInfo.Sid), string(serverInfo), clientv3.WithLease(c.LeaseId))
 	if err != nil {
-		logs.Info("put 失败：%s", err.Error())
+		logs.Error("put fail：%s", err.Error())
 		PanicError(err)
 	}
-	logs.Info("Client3KV put服务器信息:", c.ServerInfo)
+	logs.Info("Client3KV put ServerInfo:", c.ServerInfo)
 }
 
 //创建租约
@@ -164,7 +164,7 @@ func InitExistServer(pClient3KVMgr *Client3KVManager, pServerInfoMgr *ServerInfo
 	kv := pClient3KVMgr.GetClientKV()
 	kvs, err := kv.Get(context.TODO(), ETCD_SERVER_PATH, clientv3.WithPrefix())
 	PanicError(err)
-	logs.Info("已经启动的服务器:", kvs.Kvs)
+	logs.Info("Already started server:", kvs.Kvs)
 	for _, srv := range kvs.Kvs {
 		s := &ServerInfo{}
 		err1 := json.Unmarshal(srv.Value, s)

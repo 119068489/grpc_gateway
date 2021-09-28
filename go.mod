@@ -9,15 +9,14 @@ require (
 	github.com/SkyAPM/go2sky v1.2.0
 	github.com/apache/pulsar-client-go v0.6.0
 	github.com/astaxie/beego v1.12.3
+	github.com/codegangsta/inject v0.0.0-20150114235600-33e0aa1cb7c0
 	github.com/garyburd/redigo v1.6.2
 	github.com/go-ini/ini v1.62.0 // indirect
 	github.com/golang/glog v0.0.0-20210429001901-424d2337a529
 	github.com/golang/protobuf v1.5.2
-	github.com/google/pprof v0.0.0-20210827144239-02619b876842 // indirect
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.0
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
-	github.com/ianlancetaylor/demangle v0.0.0-20210905161508-09a460cdf81d // indirect
 	github.com/kr/pretty v0.3.0 // indirect
 	github.com/lib/pq v1.10.2
 	github.com/minio/minio-go v6.0.14+incompatible
