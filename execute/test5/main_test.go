@@ -1,12 +1,18 @@
 package main
 
-import "testing"
+import (
+	"grpc_gateway/easygo"
+	"runtime"
+	"testing"
+	"time"
+)
 
 func BenchmarkMain(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		Ranges()
+		easygo.PrintMsg("asdddddddaaaaaaaasefefefefefeesdfafsafaf")
 	}
+	time.Sleep(time.Second * 1)
+	b.Log(runtime.NumGoroutine())
 }
 
-//19825	     60118 ns/op	     792 B/op	      33 allocs/op
-// BenchmarkMain-8   	288256086	         4.308 ns/op	       0 B/op	       0 allocs/op
+// BenchmarkMain-8   	       1	8627570600 ns/op	   85328 B/op	    2339 allocs/op

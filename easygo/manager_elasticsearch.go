@@ -112,23 +112,24 @@ func (c *ElasticManager) Update(index, id string, data map[string]interface{}) {
 
 //查找
 func (c *ElasticManager) Gets(index, id string) {
-	//通过id查找
-	res, err := c.Client.Get().
-		Index(index).
-		Id(id).
-		Do(context.Background())
-	if err != nil {
-		fmt.Println(err)
-	} else {
-		if res.Found {
-			fmt.Printf("Got document %s in version %d from index %s, type %s\n", res.Id, res.Version, res.Index, res.Type)
-		} else {
-			fmt.Println("Not Found")
-		}
+	logs.Info(index, id)
+	// //通过id查找
+	// res, err := c.Client.Get().
+	// 	Index(index).
+	// 	Id(id).
+	// 	Do(context.Background())
+	// if err != nil {
+	// 	fmt.Println(err)
+	// } else {
+	// 	if res.Found {
+	// 		fmt.Printf("Got document %s in version %d from index %s, type %s\n", res.Id, res.Version, res.Index, res.Type)
+	// 	} else {
+	// 		fmt.Println("Not Found")
+	// 	}
 
-		data, _ := res.Source.MarshalJSON()
-		fmt.Println("result:", string(data))
-	}
+	// 	data, _ := res.Source.MarshalJSON()
+	// 	fmt.Println("result:", string(data))
+	// }
 }
 
 //搜索

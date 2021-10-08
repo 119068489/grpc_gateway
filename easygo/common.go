@@ -5,31 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"strings"
 
 	"runtime"
 	"time"
 
 	"github.com/garyburd/redigo/redis"
 )
-
-const (
-	SERVER_TYPE_RPC     = 1 //RPC服务器类型
-	SERVER_TYPE_GATEWAY = 2 //gateway服务器类型
-	SERVER_StATE_ON     = 1 //服务器状态正常
-	SERVER_StATE_OFF    = 2 //服务器状态关闭
-)
-
-//服务器表 server_info
-type ServerInfo struct {
-	Sid        int32  //服务器编号
-	Name       string //服务器名称
-	Type       int32  //服务器类型
-	ExternalIp string //对外ip
-	InternalIP string //内部ip
-	State      int32  //状态
-	ConNum     int32  //连接数
-	Version    string //版本
-}
 
 func ProtectRun(entry func()) {
 	// 延迟处理的函数
@@ -245,4 +227,53 @@ func StringSliceEqual(a, b []string) bool {
 		}
 	}
 	return true
+}
+
+//高效拼接字符串
+func BuilderConcat(str ...string) string {
+	var long int
+	for _, v := range str {
+		long += len(v)
+	}
+	var builder strings.Builder
+	builder.Grow(long)
+	for _, v := range str {
+		builder.WriteString(v)
+	}
+
+	return builder.String()
+}
+
+//模拟打字效果输出
+func PrintMsg(f interface{}, v ...interface{}) {
+	str := formatLog(f, v)
+	for i := range str {
+		<-time.NewTicker(time.Second / 100).C
+		fmt.Print(string(str[i]))
+	}
+	fmt.Println()
+}
+
+func formatLog(f interface{}, v ...interface{}) string {
+	var msg string
+	switch d := f.(type) {
+	case string:
+		msg = f.(string)
+		if len(v) == 0 {
+			return msg
+		}
+		if strings.Contains(msg, "%") && !strings.Contains(msg, "%%") {
+			//format string
+		} else {
+			//do not contain format char
+			msg += strings.Repeat(" %v", len(v))
+		}
+	default:
+		msg = fmt.Sprint(d)
+		if len(v) == 0 {
+			return msg
+		}
+		msg += strings.Repeat(" %v", len(v))
+	}
+	return fmt.Sprintf(msg, v...)
 }

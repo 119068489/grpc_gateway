@@ -59,7 +59,6 @@ func (kwatSelf KWAT) GetString(key string) string {
 		return AnytoA(val)
 	}
 	return ""
-
 }
 func (kwatSelf KWAT) GetInt(key string) int {
 	val, ok := kwatSelf[key].(int)

@@ -17,16 +17,20 @@ import (
 
 func Entry(flagSet *flag.FlagSet, args []string) {
 	initializer := easygo.NewInitializer()
-	initializer.Execute()
+	defer func() { // 若是异常了,确保异步日志有成功写盘
+		logger := initializer.GetBeeLogger()
+		if logger != nil {
+			logger.Flush()
+		}
+	}()
 
-	Initialize()
+	dict := easygo.KWAT{
+		"logName":  "rpc_server",
+		"yamlPath": "config_rpc.yaml",
+	}
+	initializer.Execute(dict) //执行公共配置初始化
 
-	//启动etcd
-	PClient3KVMgr.StartClintTV3()
-	defer PClient3KVMgr.Close()
-
-	//etcd已存在的服务器
-	easygo.InitExistServer(PClient3KVMgr, PServerInfoMgr, PServerInfo)
+	Initialize() //初始化本服特有配置
 
 	var serveFunctions = []func(){}
 	serveFunctions = append(serveFunctions, SignHandle, RpcServerRun)
@@ -46,9 +50,10 @@ func SignHandle() {
 		s := <-c
 		switch s {
 		case syscall.SIGTERM:
-			logs.Info("rpc服务器关闭:", PServerInfo)
+			logs.Info("rpc服务器关闭:", easygo.PServer.GetInfo())
 			//TODO:服务器关闭逻辑处理
-			PClient3KVMgr.CancleLease()
+			easygo.EtcdMgr.CancleLease()
+			easygo.EtcdMgr.Close()
 			time.Sleep(time.Second * 10)
 			os.Exit(1)
 		default:
@@ -58,18 +63,17 @@ func SignHandle() {
 }
 
 func RpcServerRun() {
-
-	lis, err := net.Listen("tcp", easygo.Server_IP)
+	lis, err := net.Listen("tcp", easygo.SERVER_ADDR)
 
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
 
-	tracer, _ := easygo.NewJaegerTracer(easygo.Server_Name, "127.0.0.1:6831")
+	tracer, _ := easygo.NewJaegerTracer(easygo.SERVER_NAME, "127.0.0.1:6831")
 
 	s := grpc.NewServer(easygo.ServerOption(tracer))
 	gateway.RegisterGatewayServer(s, &Server{})
-	logs.Info("Rpc server start to listen %s", easygo.Server_IP)
+	logs.Info("Rpc server start to listen %s", easygo.SERVER_ADDR)
 
 	s.Serve(lis)
 }

@@ -10,56 +10,80 @@ import (
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
-//etcd连接管理
-type Client3KVManager struct {
-	ServerType string      //服务器类型
-	ServerInfo *ServerInfo //服务器信息
-	PClient    *clientv3.Client
-	PClient3KV clientv3.KV
-	Lease      clientv3.Lease     //租约
-	LeaseId    clientv3.LeaseID   //租约id
-	CancleFun  context.CancelFunc //取消租约
-	Mutex      RLock
+type IClient3KVManager interface {
+	StartClintTV3(isWatch ...bool) //连接ETCD服务器
+	CancleLease()                  //撤销租约
+	Close()                        //关闭Client
 }
 
-func NewClient3KVManager(serverType string, serverInfo *ServerInfo) *Client3KVManager { // services map[string]interface{},
+//etcd连接管理
+type Client3KVManager struct {
+	ServerInfoManager IServerManager //服务器管理器
+	ServerType        string         //服务器类型
+	ServerInfo        IServerInfo    //服务器信息
+	EtcdCenterAddr    []string       //etcd中心集群地址 127.0.0.1:2379,127.0.0.1:22379,127.0.0.1:32379
+	EtcdServerPath    string         //etcd 项目key path
+	PClient           *clientv3.Client
+	PClient3KV        clientv3.KV
+	Lease             clientv3.Lease     //租约
+	LeaseId           clientv3.LeaseID   //租约id
+	CancleFun         context.CancelFunc //取消租约
+	Mutex             RLock
+}
+
+func NewClient3KVManager(yaml IYamlConfig) *Client3KVManager { // services map[string]interface{},
 	p := &Client3KVManager{}
-	p.Init(serverType, serverInfo)
+	p.Init(yaml)
 	return p
 }
 
 //初始化
-func (c *Client3KVManager) Init(serverType string, serverInfo *ServerInfo) {
-	c.ServerType = serverType
-	c.ServerInfo = serverInfo
+func (c *Client3KVManager) Init(yaml IYamlConfig) {
+	c.EtcdCenterAddr = yaml.GetValueAsArrayString("ETCD_CENTER_ADDR")
+	c.EtcdServerPath = yaml.GetValueAsString("ETCD_SERVER_PATH")
+	c.ServerInfoManager = ServerMgr
+	c.ServerInfo = PServer.GetInfo()
 }
 
 //连接ETCD服务器
-func (c *Client3KVManager) StartClintTV3() {
+func (c *Client3KVManager) StartClintTV3(isWatch ...bool) {
 	//创建连接
 	c.Mutex.Lock()
 	defer c.Mutex.Unlock()
+	if c.ServerInfo == nil {
+		return
+	} else {
+		c.ServerType = c.ServerInfo.GetName()
+	}
 	var err error
 	c.PClient, err = clientv3.New(clientv3.Config{
-		Endpoints:   ETCD_CENTER_ADDR,
+		Endpoints:   c.EtcdCenterAddr,
 		DialTimeout: 5 * time.Second,
 	})
 	PanicError(err)
-	logs.Info("Client3KV Connect to etcd server %s", ETCD_CENTER_ADDR)
+	logs.Info("Client3KV Connecting to ETCD server", c.EtcdCenterAddr)
+
 	c.CreateLease()
 	c.SetLeaseTime(10)
 	c.UpdateLeaseTime()
 	//创建KV
 	c.PClient3KV = clientv3.NewKV(c.PClient)
-	serverInfo, err1 := json.Marshal(c.ServerInfo)
+	serverInfo, err1 := json.Marshal(c.ServerInfo.GetInfo())
 	PanicError(err1)
+	logs.Info("Successfully connected to the ETCD server")
 	//通过租约put
-	_, err = c.PClient3KV.Put(context.TODO(), ETCD_SERVER_PATH+c.ServerType+"/"+AnytoA(c.ServerInfo.Sid), string(serverInfo), clientv3.WithLease(c.LeaseId))
+	_, err = c.PClient3KV.Put(context.TODO(), c.EtcdServerPath+c.ServerType+"/"+AnytoA(c.ServerInfo.GetSid()), string(serverInfo), clientv3.WithLease(c.LeaseId))
 	if err != nil {
-		logs.Error("put fail：%s", err.Error())
+		logs.Error("put fail：", err.Error())
 		PanicError(err)
 	}
 	logs.Info("Client3KV put ServerInfo:", c.ServerInfo)
+
+	//初始化已有的服务器并监听服务器的变化
+	isWatch = append(isWatch, true)
+	if isWatch[0] {
+		c.InitExistServer()
+	}
 }
 
 //创建租约
@@ -159,30 +183,30 @@ func (c *Client3KVManager) GetClientKV() clientv3.KV {
 }
 
 //初始化etcd已存在的服务器
-func InitExistServer(pClient3KVMgr *Client3KVManager, pServerInfoMgr *ServerInfoManager, server *ServerInfo) {
-	client := pClient3KVMgr.GetClient()
-	kv := pClient3KVMgr.GetClientKV()
-	kvs, err := kv.Get(context.TODO(), ETCD_SERVER_PATH, clientv3.WithPrefix())
+func (c *Client3KVManager) InitExistServer() {
+	kv := c.GetClientKV()
+	kvs, err := kv.Get(context.TODO(), c.EtcdServerPath, clientv3.WithPrefix())
 	PanicError(err)
 	logs.Info("Already started server:", kvs.Kvs)
+
 	for _, srv := range kvs.Kvs {
 		s := &ServerInfo{}
 		err1 := json.Unmarshal(srv.Value, s)
 		PanicError(err1)
-		if s.Sid == server.Sid {
+		if s.Sid == c.ServerInfo.GetSid() {
 			continue
 		}
 		// logs.Info("服务器:", *s.Sid, s)
-		pServerInfoMgr.AddServerInfo(s)
+		c.ServerInfoManager.AddServerInfo(s)
 	}
 	//监视login服务器变化
-	WatchToServer(client, ETCD_SERVER_PATH, pServerInfoMgr)
+	c.watchToServer()
 }
 
 //监听服务器的变化
-func WatchToServer(clt *clientv3.Client, key string, pServerInfoMgr *ServerInfoManager) {
+func (c *Client3KVManager) watchToServer() {
 	Spawn(func() {
-		wc := clt.Watch(context.TODO(), key, clientv3.WithPrefix())
+		wc := c.GetClient().Watch(context.TODO(), c.EtcdServerPath, clientv3.WithPrefix())
 		for v := range wc {
 			for _, e := range v.Events {
 				// logs.Info("type:%v kv:%v  prevKey:%v  value:%v\n ", e.Type, string(e.Kv.Key), e.PrevKv, e.Kv.Value)
@@ -190,8 +214,8 @@ func WatchToServer(clt *clientv3.Client, key string, pServerInfoMgr *ServerInfoM
 				case 1: //删除 mvccpb.DELETE
 					//关闭无效连接
 					params := strings.Split(string(e.Kv.Key), "/")
-					sid := AtoInt32(params[3])
-					pServerInfoMgr.DelServerInfo(sid)
+					sid := Atoi(params[3])
+					c.ServerInfoManager.DelServerInfo(sid)
 					logs.Info("remove ServerInfo:id=", sid)
 				case 0: //增加mvccpb.PUT
 					//如果已经连接
@@ -200,7 +224,7 @@ func WatchToServer(clt *clientv3.Client, key string, pServerInfoMgr *ServerInfoM
 						logs.Info("WatchToLogin err", err)
 						continue
 					}
-					pServerInfoMgr.AddServerInfo(ss)
+					c.ServerInfoManager.AddServerInfo(ss)
 					logs.Info("add ServerInfo:", ss)
 				}
 			}
