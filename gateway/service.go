@@ -21,7 +21,7 @@ import (
 
 func proxyEntry(w http.ResponseWriter, r *http.Request) {
 	logs.Debug("一个RPC转发请求")
-	trueServer := "http://localhost:9191"
+	trueServer := "http://localhost:9192"
 	url, err := url.Parse(trueServer)
 	if err != nil {
 		log.Println(err)

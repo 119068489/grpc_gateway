@@ -1,142 +1,68 @@
 package easygo
 
-import (
-	"sort"
+import "net"
+
+const (
+	SERVER_TYPE_RPC     = 1 //RPC服务器类型
+	SERVER_TYPE_GATEWAY = 2 //gateway服务器类型
+	SERVER_StATE_ON     = 1 //服务器状态正常
+	SERVER_StATE_OFF    = 2 //服务器状态关闭
 )
 
-type (
-	server_id = int32
-)
-
-//服务器管理器，管理连接服务器信息
-type ServerInfoManager struct {
-	ServerInfo map[server_id]*ServerInfo
-	Mutex      RLock
+type IServerInfo interface {
+	GetInfo() *ServerInfo
+	GetSid() int
+	GetName() string
+	GetType() int
+	GetAddress() string
 }
 
-func NewServerInfoManager() *ServerInfoManager { // services map[string]interface{},
-	p := &ServerInfoManager{}
-	p.Init()
+//服务器表 server_info
+type ServerInfo struct {
+	Sid        int    //服务器编号
+	Name       string //服务器名称
+	Type       int    //服务器类型
+	ExternalIp string //对外ip
+	InternalIP string //内部ip
+	Port       int    //端口
+	State      int    //状态
+	ConNum     int    //连接数
+	Version    string //版本
+}
+
+func NewServerInfo(yaml IYamlConfig) *ServerInfo {
+	p := &ServerInfo{}
+	p.Init(p, yaml)
 	return p
 }
 
-func (serverSelf *ServerInfoManager) Init() {
-	serverSelf.ServerInfo = make(map[server_id]*ServerInfo)
-}
-func (serverSelf *ServerInfoManager) AddServerInfo(srv *ServerInfo) {
-	serverSelf.Mutex.Lock()
-	defer serverSelf.Mutex.Unlock()
-	serverSelf.ServerInfo[srv.Sid] = srv
-}
-func (serverSelf *ServerInfoManager) DelServerInfo(id server_id) {
-	serverSelf.Mutex.Lock()
-	defer serverSelf.Mutex.Unlock()
-	delete(serverSelf.ServerInfo, id)
-}
-func (serverSelf *ServerInfoManager) GetServerInfo(serverId server_id) *ServerInfo {
-	serverSelf.Mutex.Lock()
-	defer serverSelf.Mutex.Unlock()
-
-	srvInfo, ok := serverSelf.ServerInfo[serverId]
-	if !ok {
-		return nil
-	}
-	return srvInfo
-}
-func (serverSelf *ServerInfoManager) ChangeServerState(serverId server_id, st int32) {
-	serverSelf.Mutex.Lock()
-	defer serverSelf.Mutex.Unlock()
-	srv := serverSelf.GetServerInfo(serverId)
-	srv.State = st
+func (sSelf *ServerInfo) Init(me IServerInfo, yaml IYamlConfig) {
+	sSelf.Sid = YamlCfg.GetValueAsInt("SERVER_ID")
+	sSelf.Name = YamlCfg.GetValueAsString("SERVER_NAME")
+	sSelf.Type = YamlCfg.GetValueAsInt("SERVER_TYPE")
+	sSelf.ExternalIp = YamlCfg.GetValueAsString("SERVER_ADDR")
+	sSelf.InternalIP = YamlCfg.GetValueAsString("SERVER_ADDR_INTERNAL")
+	sSelf.Port = YamlCfg.GetValueAsInt("LISTEN_PORT_FOR_CLIENT")
+	sSelf.State = SERVER_StATE_ON
+	sSelf.ConNum = 0
 }
 
-//负载均衡，分配一台服务器
-func (serverSelf *ServerInfoManager) GetIdelServer(t int32) *ServerInfo {
-	serverSelf.Mutex.Lock()
-	defer serverSelf.Mutex.Unlock()
-	temMap := make(map[int32]int32, len(serverSelf.ServerInfo))
-	for k, v := range serverSelf.ServerInfo {
-		if v.Type == t {
-			temMap[k] = v.ConNum
-		}
-	}
-	if len(temMap) > 0 {
-		sid := serverSelf.SortMapByValue(temMap)
-		return serverSelf.ServerInfo[sid]
-	}
-	return serverSelf.ServerInfo[0]
+func (sSelf *ServerInfo) GetInfo() *ServerInfo {
+	return sSelf
 }
 
-func (serverSelf *ServerInfoManager) GetAllServers(t int32) []*ServerInfo {
-	serverSelf.Mutex.Lock()
-	defer serverSelf.Mutex.Unlock()
-	var temMap []*ServerInfo
-	temMap = make([]*ServerInfo, 0, len(serverSelf.ServerInfo))
-	for _, v := range serverSelf.ServerInfo {
-		if v.Type == t {
-			temMap = append(temMap, v)
-		}
-	}
-	return temMap
+func (sSelf *ServerInfo) GetSid() int {
+	return sSelf.Sid
 }
 
-func (serverSelf *ServerInfoManager) GetAll() []*ServerInfo {
-	serverSelf.Mutex.Lock()
-	defer serverSelf.Mutex.Unlock()
-	var temMap []*ServerInfo
-	temMap = make([]*ServerInfo, 0, len(serverSelf.ServerInfo))
-	for _, v := range serverSelf.ServerInfo {
-		temMap = append(temMap, v)
-	}
-	return temMap
+func (sSelf *ServerInfo) GetName() string {
+	return sSelf.Name
 }
 
-//连接数增加
-func (serverSelf *ServerInfoManager) AddConNum(sid server_id) {
-	serverSelf.Mutex.Lock()
-	defer serverSelf.Mutex.Unlock()
-	for _, v := range serverSelf.ServerInfo {
-		if v.Sid == sid {
-			v.ConNum = v.ConNum + 1
-			break
-		}
-	}
+func (sSelf *ServerInfo) GetType() int {
+	return sSelf.Type
 }
 
-//连接数减少
-func (serverSelf *ServerInfoManager) DelConNum(sid server_id) {
-	serverSelf.Mutex.Lock()
-	defer serverSelf.Mutex.Unlock()
-	for _, v := range serverSelf.ServerInfo {
-		if v.Sid == sid {
-			v.ConNum = v.ConNum - 1
-			break
-		}
-	}
-}
-
-//------------------------------
-// A data structure to hold a key/value pair.
-type EGOPair struct {
-	Key   int32
-	Value int32
-}
-
-// A slice of Pairs that implements sort.Interface to sort by Value.
-type EGOPairList []EGOPair
-
-func (p EGOPairList) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
-func (p EGOPairList) Len() int           { return len(p) }
-func (p EGOPairList) Less(i, j int) bool { return p[i].Value < p[j].Value }
-
-// 返回人数最少的服务器ID
-func (serverSelf *ServerInfoManager) SortMapByValue(m map[int32]int32) int32 {
-	p := make(EGOPairList, len(m))
-	i := 0
-	for k, v := range m {
-		p[i] = EGOPair{k, v}
-		i++
-	}
-	sort.Sort(p)
-	return p[0].Key
+func (sSelf *ServerInfo) GetAddress() string {
+	return net.JoinHostPort(sSelf.ExternalIp, AnytoA(sSelf.Port))
 }

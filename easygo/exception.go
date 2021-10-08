@@ -108,3 +108,10 @@ func Try(fun func(), handler ...func(interface{})) {
 func RcoverErr(err interface{}) {
 	logs.Error(err)
 }
+
+func RecoverAndLog(skips ...int) { // 能直接被 defer 使用。
+	recoverVal := recover()
+	if recoverVal != nil {
+		LogPanicAndStack(recoverVal, skips...)
+	}
+}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"grpc_gateway/easygo"
 	"sync"
 	"time"
@@ -19,7 +20,7 @@ var (
 func init() {
 	Elastic = easygo.NewElasticManager(host)
 	initializer := easygo.NewInitializer()
-	initializer.Execute()
+	initializer.Execute(nil)
 }
 
 type Employee struct {
@@ -32,19 +33,19 @@ type Employee struct {
 
 func main() {
 
-	// fmt.Scan(&index)
-	// Elastic.Create("megacorp", "1", Employee{"Jane", "Smith", 32, "I like to collect rock albums", []string{"music"}})
+	fmt.Scan(&index)
+	// Elastic.Create("megacorp", "1", Employee{"Jane", "Smith", 32, "I like to collect rock albums", []string{"music"}})ss
 	// Elastic.Create("megacorp", "2", `{"first_name":"John","last_name":"Smith","age":25,"about":"I love to go rock climbing","interests":["sports","music"]}`)
 	// Elastic.Create("megacorp", "3", `{"first_name":"Douglas","last_name":"Fir","age":35,"about":"I like to build cabinets","interests":["forestry"]}`)
 	// Elastic.Update("megacorp", "1", map[string]interface{}{"age": 88})
 	// Elastic.Gets(index, "1")
 	// Elastic.Delete("megacorp", "oYuyDHwBmHZlmkWxHr7L")
 
-	for i := 0; i < 10; i++ {
-		wg.Add(1)
-		easygo.Spawn(GetLock, i)
-	}
-	wg.Wait()
+	// for i := 0; i < 10; i++ {
+	// 	wg.Add(1)
+	// 	easygo.Spawn(GetLock, i)
+	// }
+	// wg.Wait()
 
 }
 

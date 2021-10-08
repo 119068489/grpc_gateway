@@ -5,6 +5,7 @@ import (
 	"flag"
 	"grpc_gateway/easygo"
 	pbgw "grpc_gateway/proto/pb/gateway"
+	"net"
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
@@ -20,15 +21,20 @@ import (
 
 func Entry(flagSet *flag.FlagSet, args []string) {
 	initializer := easygo.NewInitializer()
-	initializer.Execute()
+	defer func() {
+		logger := initializer.GetBeeLogger()
+		if logger != nil {
+			logger.Flush() // 若是异常了,确保异步日志有成功写盘
+		}
+	}()
 
-	Initialize()
+	dict := easygo.KWAT{
+		"logName":  "rpc_server",
+		"yamlPath": "config_gateway.yaml",
+	}
+	initializer.Execute(dict) //执行公共配置初始化
 
-	//启动etcd
-	PClient3KVMgr.StartClintTV3()
-	defer PClient3KVMgr.Close() //关闭etcd
-	//etcd注册和发现
-	easygo.InitExistServer(PClient3KVMgr, PServerInfoMgr, PServerInfo)
+	Initialize() //初始化本服特有配置
 
 	var serveFunctions = []func(){}
 	serveFunctions = append(serveFunctions, SignHandle, GatewayServer, ProxyServer, PprofMonitor)
@@ -49,8 +55,9 @@ func SignHandle() {
 		switch s {
 		case syscall.SIGTERM:
 			//TODO:服务器关闭逻辑处理
-			logs.Info("gateway服务器关闭:", PServerInfo)
-			PClient3KVMgr.CancleLease()
+			logs.Info("gateway服务器关闭:", easygo.PServer.GetInfo())
+			easygo.EtcdMgr.CancleLease()
+			easygo.EtcdMgr.Close()
 			time.Sleep(time.Second * 10)
 			os.Exit(1)
 		default:
@@ -83,15 +90,15 @@ func GatewayServer() {
 
 	mux := runtime.NewServeMux()
 	opts := []grpc.DialOption{grpc.WithInsecure()}
-	tracer, _ := easygo.NewJaegerTracer(easygo.Server_Name, "localhost:6831") //创建jaeger tracer
+	tracer, _ := easygo.NewJaegerTracer(easygo.SERVER_NAME, "localhost:6831") //创建jaeger tracer
 
 	//拦截器注
 	opts = append(opts, easygo.DialOption(tracer), grpc.WithChainUnaryInterceptor(Interceptor)) //自定义拦截器
 
-	ps := PServerInfoMgr.GetIdelServer(easygo.SERVER_TYPE_RPC) //获取rpc服务器配置
-	adds := "localhost:9192"
+	ps := easygo.ServerMgr.GetIdelServer(easygo.SERVER_TYPE_RPC) //获取rpc服务器配置
+	adds := "localhost:9191"
 	if ps != nil {
-		adds = ps.InternalIP
+		adds = net.JoinHostPort(ps.InternalIP, easygo.AnytoA(ps.Port))
 	} else {
 		logs.Error("No found rpc server,Default listening %s", adds)
 	}
@@ -100,7 +107,7 @@ func GatewayServer() {
 	err := pbgw.RegisterGatewayHandlerFromEndpoint(ctx, mux, *echoEndpoint, opts)
 	easygo.PanicError(err)
 
-	easygo.ServerRun(easygo.Server_IP, mux, "Gateway server")
+	easygo.ServerRun(easygo.SERVER_ADDR, mux, "Gateway server")
 }
 
 func ProxyServer() {
