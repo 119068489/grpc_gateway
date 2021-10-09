@@ -10,11 +10,20 @@ import (
 	"github.com/astaxie/beego/logs"
 )
 
-type SpecialString interface{}
-type SpecialInt interface{}
-
 func main() {
-	easygo.PrintMsg("asdddddddaaaaaaaasefefefefefeesdfafsafaf")
+	var m sync.Map
+	m.Store("a", 1)
+	m.Store("b", 2)
+	m.LoadOrStore("c", 3)
+	r, b := m.LoadAndDelete("a")
+	logs.Debug(r, b)
+	m.Range(func(key, value interface{}) bool {
+		logs.Debug(key, value)
+		return true
+	})
+	t := reflect.TypeOf(r)
+	logs.Debug(t.Kind())
+
 }
 
 func Ranges() {
@@ -49,6 +58,8 @@ func RangeChannle() {
 					return
 				}
 				logs.Info(j)
+			default:
+				logs.Error("通道取值错误")
 			}
 		}
 	}()

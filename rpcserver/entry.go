@@ -16,6 +16,7 @@ import (
 )
 
 func Entry(flagSet *flag.FlagSet, args []string) {
+
 	initializer := easygo.NewInitializer()
 	defer func() { // 若是异常了,确保异步日志有成功写盘
 		logger := initializer.GetBeeLogger()

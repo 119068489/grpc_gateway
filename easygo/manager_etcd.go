@@ -187,18 +187,19 @@ func (c *Client3KVManager) InitExistServer() {
 	kv := c.GetClientKV()
 	kvs, err := kv.Get(context.TODO(), c.EtcdServerPath, clientv3.WithPrefix())
 	PanicError(err)
-	logs.Info("Already started server:", kvs.Kvs)
-
+	var serversInfo []ServerInfo
 	for _, srv := range kvs.Kvs {
 		s := &ServerInfo{}
 		err1 := json.Unmarshal(srv.Value, s)
 		PanicError(err1)
+
 		if s.Sid == c.ServerInfo.GetSid() {
 			continue
 		}
-		// logs.Info("服务器:", *s.Sid, s)
+		serversInfo = append(serversInfo, *s)
 		c.ServerInfoManager.AddServerInfo(s)
 	}
+	logs.Info("Already started server:%v", serversInfo)
 	//监视login服务器变化
 	c.watchToServer()
 }
