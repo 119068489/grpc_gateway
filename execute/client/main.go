@@ -30,7 +30,7 @@ const (
 
 func main() {
 	for {
-		<-time.NewTicker(time.Second).C
+		<-time.Tick(time.Second)
 		easygo.ProtectRun(httpPost)
 		easygo.ProtectRun(httpGet)
 		easygo.ProtectRun(rpcReq)
