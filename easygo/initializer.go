@@ -5,6 +5,7 @@ import (
 
 	"github.com/astaxie/beego/logs"
 	"github.com/sasha-s/go-deadlock"
+	"go.uber.org/zap"
 )
 
 /*
@@ -16,6 +17,7 @@ type IInitializer interface {
 	SetDeadLockOptions()
 	SetBeegoLogs(dict KWAT)
 	GetBeeLogger() *logs.BeeLogger
+	SetZapLogger()
 
 	CreateServerInfo(yaml IYamlConfig) IServerInfo
 	CreateServerInfoMgr() IServerManager
@@ -42,6 +44,7 @@ func (initSelf *Initializer) Init(me IInitializer) {
 func (initSelf *Initializer) Execute(dict KWAT) {
 	initSelf.Me.SetBeegoLogs(dict)
 	initSelf.Me.SetDeadLockOptions()
+	initSelf.Me.SetZapLogger()
 
 	YamlCfg = initSelf.Me.CreateYamlConfig(dict)
 	EDITION = YamlCfg.GetValueAsString("EDITION")
@@ -89,6 +92,7 @@ func (initSelf *Initializer) CreateEtcd(yaml IYamlConfig) IClient3KVManager {
 	return NewClient3KVManager(yaml)
 }
 
+//beego日志设置
 func (initSelf *Initializer) SetBeegoLogs(dict KWAT) {
 	logName, ok := dict["logName"]
 	if !ok {
@@ -99,7 +103,18 @@ func (initSelf *Initializer) SetBeegoLogs(dict KWAT) {
 	err = logs.SetLogger(logs.AdapterConsole, fmt.Sprintf(`{"level":%d}`, logs.LevelDebug))
 	PanicError(err)
 
-	config := `{"filename":"logs/%s.log", "separate":["error", "warning", "info", "debug"], "level":%d, "daily":true, "rotate":true, "maxdays":15,"perm":"777"}`
+	/*
+		filename 保存的文件名
+		maxlines 每个文件保存的最大行数，默认值 1000000
+		maxsize 每个文件保存的最大尺寸，默认值是 1 << 28, //256 MB
+		daily 是否按照每天 logrotate，默认是 true
+		maxdays 文件最多保存多少天，默认保存 7 天
+		rotate 是否开启 logrotate，默认是 true
+		level 日志保存的时候的级别，默认是 Trace 级别
+		perm 日志文件权限
+		separate 需要单独写入文件的日志级别,设置后命名类似 test.error.log
+	*/
+	config := `{"filename":"logs/%s.log", "separate":["error", "warning", "info", "debug"], "level":%d, "daily":true, "rotate":true, "maxdays":15,"maxlines":1000000,"perm":"777"}`
 	config = fmt.Sprintf(config, logName, logs.LevelDebug)
 	err = logs.SetLogger(logs.AdapterMultiFile, config)
 	PanicError(err)
@@ -121,10 +136,27 @@ func (initSelf *Initializer) SetDeadLockOptions() {
 	deadlock.Opts.OnPotentialDeadlock = func() {} // 默认 exit()
 }
 
+//zap日志设置
+func (initSelf *Initializer) SetZapLogger() {
+	// file, _ := os.Create("logs/test.log")
+	// writeSyncer := zapcore.AddSync(file)
+
+	// encoderConfig := zap.NewProductionEncoderConfig()
+	// encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+	// encoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
+	// encoder := zapcore.NewJSONEncoder(encoderConfig)
+	// core := zapcore.NewCore(encoder, writeSyncer, zapcore.DebugLevel)
+
+	// logger := zap.New(core, zap.AddCaller())
+	logger, _ := zap.NewProduction(zap.AddCaller())
+	Logs = logger.Sugar()
+}
+
 var (
-	YamlCfg   IYamlConfig
-	RedisMgr  IRedisManager     //redis存储
-	EtcdMgr   IClient3KVManager //etcd存储
-	ServerMgr IServerManager    //serverMgr存储
-	PServer   IServerInfo       //server存储
+	YamlCfg   IYamlConfig        //配置
+	RedisMgr  IRedisManager      //redis存储
+	EtcdMgr   IClient3KVManager  //etcd存储
+	ServerMgr IServerManager     //serverMgr存储
+	PServer   IServerInfo        //server存储
+	Logs      *zap.SugaredLogger //zap日志
 )
