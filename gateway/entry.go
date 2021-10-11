@@ -26,10 +26,12 @@ func Entry(flagSet *flag.FlagSet, args []string) {
 		if logger != nil {
 			logger.Flush() // 若是异常了,确保异步日志有成功写盘
 		}
+
+		// easygo.Logs.Sync()
 	}()
 
 	dict := easygo.KWAT{
-		"logName":  "rpc_server",
+		"logName":  "gateway_server",
 		"yamlPath": "config_gateway.yaml",
 	}
 	initializer.Execute(dict) //执行公共配置初始化

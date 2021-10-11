@@ -4,7 +4,6 @@ import (
 	"flag"
 	"grpc_gateway/easygo"
 	"grpc_gateway/proto/pb/gateway"
-	"log"
 	"net"
 	"os"
 	"os/signal"
@@ -65,9 +64,8 @@ func SignHandle() {
 
 func RpcServerRun() {
 	lis, err := net.Listen("tcp", easygo.SERVER_ADDR)
-
 	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
+		logs.Error("failed to listen: %v", err)
 	}
 
 	tracer, _ := easygo.NewJaegerTracer(easygo.SERVER_NAME, "127.0.0.1:6831")
@@ -75,6 +73,7 @@ func RpcServerRun() {
 	s := grpc.NewServer(easygo.ServerOption(tracer))
 	gateway.RegisterGatewayServer(s, &Server{})
 	logs.Info("Rpc server start to listen %s", easygo.SERVER_ADDR)
+	// easygo.Logs.Info("Rpc server start to listen" + easygo.SERVER_ADDR)
 
 	s.Serve(lis)
 }

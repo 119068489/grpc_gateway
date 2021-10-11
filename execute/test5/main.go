@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"grpc_gateway/easygo"
 	"reflect"
@@ -11,26 +12,18 @@ import (
 )
 
 func main() {
-	var m sync.Map
-	m.Store("a", 1)
-	m.Store("b", 2)
-	m.LoadOrStore("c", 3)
-	r, b := m.LoadAndDelete("a")
-	logs.Debug(r, b)
-	m.Range(func(key, value interface{}) bool {
-		logs.Debug(key, value)
-		return true
-	})
-	t := reflect.TypeOf(r)
-	logs.Debug(t.Kind())
-
 }
 
-func Ranges() {
-	a := []string{"1", "3", "2"}
-
-	for i := range a {
-		_, _ = i, a[i]
+func Ranges(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			logs.Info("go exit")
+			return
+		default:
+			logs.Info("go on")
+			<-time.After(time.Second)
+		}
 	}
 }
 
