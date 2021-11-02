@@ -71,7 +71,8 @@ func RpcServerRun() {
 	tracer, _ := easygo.NewJaegerTracer(easygo.SERVER_NAME, "127.0.0.1:6831")
 
 	s := grpc.NewServer(easygo.ServerOption(tracer))
-	gateway.RegisterGatewayServer(s, &Server{})
+
+	gateway.RegisterGatewayServer(s, new(Server))
 	logs.Info("Rpc server start to listen %s", easygo.SERVER_ADDR)
 	// easygo.Logs.Info("Rpc server start to listen" + easygo.SERVER_ADDR)
 

@@ -80,6 +80,38 @@
         ]
       }
     },
+    "/v1/example/login": {
+      "post": {
+        "operationId": "Gateway_Login",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gatewayLoginReply"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/gatewayLoginRequest"
+            }
+          }
+        ],
+        "tags": [
+          "Gateway"
+        ]
+      }
+    },
     "/v1/example/upload": {
       "post": {
         "operationId": "Gateway_Upload",
@@ -132,6 +164,28 @@
           "type": "boolean"
         },
         "message": {
+          "type": "string"
+        }
+      }
+    },
+    "gatewayLoginReply": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string"
+        },
+        "token": {
+          "type": "string"
+        }
+      }
+    },
+    "gatewayLoginRequest": {
+      "type": "object",
+      "properties": {
+        "username": {
+          "type": "string"
+        },
+        "password": {
           "type": "string"
         }
       }
