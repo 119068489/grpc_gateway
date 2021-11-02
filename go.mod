@@ -9,6 +9,7 @@ require (
 	github.com/SkyAPM/go2sky v1.2.0
 	github.com/apache/pulsar-client-go v0.6.0
 	github.com/astaxie/beego v1.12.3
+	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/garyburd/redigo v1.6.2
 	github.com/go-ini/ini v1.62.0 // indirect
 	github.com/golang/glog v0.0.0-20210429001901-424d2337a529

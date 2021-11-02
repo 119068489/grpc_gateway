@@ -2,6 +2,8 @@ package main
 
 import (
 	"grpc_gateway/easygo"
+	"strconv"
+	"time"
 
 	"github.com/astaxie/beego/logs"
 	"github.com/streadway/amqp"
@@ -17,7 +19,7 @@ func init() {
 }
 
 func main() {
-	// consume()
+	// consumeSimple()
 	// consumeSub()
 	// recieveRouting()
 	// recieveRouting2()
@@ -28,7 +30,9 @@ func main() {
 
 //消费者消费消息的函数
 func ReadMsg(d amqp.Delivery) {
+	<-time.After(time.Second)
 	logs.Info("Received a message: %s", d.Body)
+
 }
 
 //简单模式 工作模式 接收消息
@@ -37,6 +41,7 @@ func consumeSimple() {
 	Rabbitmq.NewClient()
 	defer Rabbitmq.Destory()
 	Rabbitmq.ConsumeSimple(ReadMsg)
+
 }
 
 //订阅模式 接收消息
@@ -83,5 +88,9 @@ func RecieveRpc() {
 	Rabbitmq.Key = "rpc_queue"
 	Rabbitmq.NewClient()
 
-	Rabbitmq.RecieveRpc("ok")
+	for i := 0; i < 10; i++ {
+		Rabbitmq.RecieveRpc("ok" + strconv.Itoa(i))
+		<-time.After(time.Second)
+	}
+
 }

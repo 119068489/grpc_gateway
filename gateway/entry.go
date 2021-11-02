@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"grpc_gateway/easygo"
 	pbgw "grpc_gateway/proto/pb/gateway"
@@ -56,7 +57,7 @@ func SignHandle() {
 		s := <-c
 		switch s {
 		case syscall.SIGTERM:
-			//TODO:服务器关闭逻辑处理
+			//服务器关闭逻辑处理
 			logs.Info("gateway服务器关闭:", easygo.PServer.GetInfo())
 			easygo.EtcdMgr.CancleLease()
 			easygo.EtcdMgr.Close()
@@ -68,8 +69,14 @@ func SignHandle() {
 	}
 }
 
-// Interceptor 自定义拦截器
-func Interceptor(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
+// 自定义拦截器 Interceptor
+func Interceptor(
+	ctx context.Context, method string,
+	req, reply interface{},
+	cc *grpc.ClientConn,
+	invoker grpc.UnaryInvoker,
+	opts ...grpc.CallOption,
+) error {
 	// logs.Info("method[%v];req[%v];reply[%v];cc[%+v];invoker[%T];\n", method, req, reply, cc, invoker)
 	// tracer := easygo.NewSkyTracer("0.0.0.0:11800", "grpc_gateway", "localhost")
 	// span := easygo.SetSkySpan(ctx, method, tracer)
@@ -78,10 +85,9 @@ func Interceptor(ctx context.Context, method string, req, reply interface{}, cc 
 	// TODO
 	// 上面都是前置逻辑操作
 	err := invoker(ctx, method, req, reply, cc, opts...) // 向服务端发送请求
-	easygo.PanicError(err, "invoker err")
 	// 下面都是后置逻辑操作
 	// TODO
-
+	err = errors.New(err.Error())
 	return err
 }
 

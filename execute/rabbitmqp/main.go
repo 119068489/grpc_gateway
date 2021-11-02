@@ -44,9 +44,9 @@ func publishwork() {
 	Rabbitmq.QueueName = "testhost"
 	Rabbitmq.NewClient()
 
-	for i := 1; i <= 10; i++ {
+	for i := 1; i <= 1000; i++ {
 		Rabbitmq.PublishSimple("Hello testuser!" + strconv.Itoa(i))
-		time.Sleep(1 * time.Second)
+		time.Sleep(time.Second / 10)
 		logs.Info("[%d] 发送成功！", i)
 	}
 }
@@ -107,4 +107,5 @@ func publishRpc() {
 	Rabbitmq.NewClient()
 
 	Rabbitmq.PublishRpc("Hello rpcuser!")
+
 }

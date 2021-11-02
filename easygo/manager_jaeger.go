@@ -184,9 +184,9 @@ func ClientInterceptor(tracer opentracing.Tracer) grpc.UnaryClientInterceptor {
 		}
 
 		err := invoker(ctx, method, req, reply, cc, opts...)
-		if err != nil {
-			Oldspan.LogFields(log.String("call-error", err.Error()))
-		}
+		// if err != nil {
+		// 	Oldspan.LogFields(log.String("call-error", err.Error()))
+		// }
 		return err
 	}
 }

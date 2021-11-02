@@ -73,7 +73,7 @@ func (r *RabbitMQ) failOnErr(err error, message string) {
 	}
 }
 
-//创建简单模式下RabbitMQ实例
+//获取RabbitMQ实例的connection channel
 func (r *RabbitMQ) NewClient() {
 	var err error
 	//获取connection
@@ -83,6 +83,7 @@ func (r *RabbitMQ) NewClient() {
 	//获取channel
 	r.channel, err = r.conn.Channel()
 	r.failOnErr(err, "failed to open a channel")
+	r.channel.Qos(1, 0, false) //设置每次消费消息条数
 }
 
 //申请队列
@@ -203,7 +204,8 @@ func (r *RabbitMQ) Consume(b *BasicConsume, f ...func(amqp.Delivery)) {
 			//消息逻辑处理，可以自行设计逻辑
 			// log.Printf("Received a message: %s", d.Body)
 			if len(f) > 0 {
-				f[0](d) //传进来的消息处理函数
+				f[0](d)     //传进来的消息处理函数
+				d.Ack(true) //自动应答关闭时使用
 			}
 
 		}
@@ -217,6 +219,7 @@ func (r *RabbitMQ) Consume(b *BasicConsume, f ...func(amqp.Delivery)) {
 func (r *RabbitMQ) PublishSimple(message string) {
 	//1.申请队列，如果队列不存在会自动创建，存在则跳过创建
 	r.QueueDeclare(&DeclareReq{
+		Queue:      r.QueueName,
 		Durable:    false,
 		AutoDelete: false,
 		Exclusive:  false,
@@ -230,6 +233,7 @@ func (r *RabbitMQ) PublishSimple(message string) {
 func (r *RabbitMQ) ConsumeSimple(f func(amqp.Delivery)) {
 	//1.申请队列，如果队列不存在会自动创建，存在则跳过创建
 	q := r.QueueDeclare(&DeclareReq{
+		Queue:      r.QueueName,
 		Durable:    false,
 		AutoDelete: false,
 		Exclusive:  false,
@@ -239,7 +243,7 @@ func (r *RabbitMQ) ConsumeSimple(f func(amqp.Delivery)) {
 	r.Consume(&BasicConsume{
 		Queue:       q.Name,
 		ConsumerTag: "",
-		NoAck:       true,
+		NoAck:       false,
 		Exclusive:   false,
 		NoLocal:     false,
 		NoWait:      false,
@@ -266,6 +270,7 @@ func (r *RabbitMQ) PublishPub(message string) {
 func (r *RabbitMQ) RecieveSub(f func(amqp.Delivery)) {
 	//1.试探性创建交换机
 	r.ExchangeDeclare(&DeclareReq{
+		Kind:       "fanout",
 		Durable:    true,
 		AutoDelete: false,
 		Internal:   false,
@@ -286,7 +291,7 @@ func (r *RabbitMQ) RecieveSub(f func(amqp.Delivery)) {
 	r.Consume(&BasicConsume{
 		Queue:       q.Name,
 		ConsumerTag: "",
-		NoAck:       true,
+		NoAck:       false,
 		Exclusive:   false,
 		NoLocal:     false,
 		NoWait:      false,
@@ -336,7 +341,7 @@ func (r *RabbitMQ) RecieveRouting(f func(amqp.Delivery)) {
 	r.Consume(&BasicConsume{
 		Queue:       q.Name,
 		ConsumerTag: "",
-		NoAck:       true,
+		NoAck:       false,
 		Exclusive:   false,
 		NoLocal:     false,
 		NoWait:      false,
@@ -387,7 +392,7 @@ func (r *RabbitMQ) RecieveTopic(f func(amqp.Delivery)) {
 	r.Consume(&BasicConsume{
 		Queue:       q.Name,
 		ConsumerTag: "",
-		NoAck:       true,
+		NoAck:       false,
 		Exclusive:   false,
 		NoLocal:     false,
 		NoWait:      false,
@@ -427,6 +432,7 @@ func (r *RabbitMQ) PublishRpc(message string) {
 
 			r.Publish(response, d.ReplyTo, false, false, d.CorrelationId)
 			d.Ack(false)
+			log.Printf("Recieve %s RPC requests %s", d.ReplyTo, string(d.Body))
 		}
 	}()
 
@@ -459,7 +465,7 @@ func (r *RabbitMQ) RecieveRpc(message string) {
 
 	for d := range msgs {
 		if corrId == d.CorrelationId {
-			logs.Info(" [.] Got %s", d.Body)
+			logs.Info(" Got: %s", d.Body)
 			break
 		}
 	}

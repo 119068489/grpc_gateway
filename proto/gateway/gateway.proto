@@ -19,7 +19,21 @@ message FSReq {
     bool status = 1;
     string message = 2;
   }
-  
+
+
+  message LoginRequest{
+    string username=1;
+    string password=2;
+  }
+
+  message LoginReply{
+    string status=1;
+    string token=2;
+  }
+
+  message PingMessage {
+    string greeting = 1;
+  }
 
 
 service Gateway {
@@ -37,6 +51,12 @@ service Gateway {
    rpc Upload(FSReq) returns (FSResp) {
     option (google.api.http) = {
         post: "/v1/example/upload"
+        body: "*"
+    };
+   }
+   rpc Login(LoginRequest) returns (LoginReply) {
+    option (google.api.http) = {
+        post: "/v1/example/login"
         body: "*"
     };
    }
