@@ -2,94 +2,70 @@ package main
 
 import (
 	"fmt"
+	"runtime"
+	"time"
+
+	"github.com/shirou/gopsutil/cpu"
+	"github.com/shirou/gopsutil/disk"
+	"github.com/shirou/gopsutil/load"
+	"github.com/shirou/gopsutil/mem"
 )
 
-type Customer interface {
-	Accept(Visitor)
-}
-
-type Visitor interface {
-	Visit(Customer)
-}
-
-type EnterpriseCustomer struct {
-	name string
-}
-
-type CustomerCol struct {
-	customers []Customer
-}
-
-func (c *CustomerCol) Add(customer Customer) {
-	c.customers = append(c.customers, customer)
-}
-
-func (c *CustomerCol) Accept(visitor Visitor) {
-	for _, customer := range c.customers {
-		customer.Accept(visitor)
-	}
-}
-
-func NewEnterpriseCustomer(name string) *EnterpriseCustomer {
-	return &EnterpriseCustomer{
-		name: name,
-	}
-}
-
-func (c *EnterpriseCustomer) Accept(visitor Visitor) {
-	visitor.Visit(c)
-}
-
-type IndividualCustomer struct {
-	name string
-}
-
-func NewIndividualCustomer(name string) *IndividualCustomer {
-	return &IndividualCustomer{
-		name: name,
-	}
-}
-
-func (c *IndividualCustomer) Accept(visitor Visitor) {
-	visitor.Visit(c)
-}
-
-type ServiceRequestVisitor struct{}
-
-func (*ServiceRequestVisitor) Visit(customer Customer) {
-	switch c := customer.(type) {
-	case *EnterpriseCustomer:
-		fmt.Printf("serving enterprise customer %s\n", c.name)
-	case *IndividualCustomer:
-		fmt.Printf("serving individual customer %s\n", c.name)
-	}
-}
-
-// only for enterprise
-type AnalysisVisitor struct{}
-
-func (*AnalysisVisitor) Visit(customer Customer) {
-	switch c := customer.(type) {
-	case *EnterpriseCustomer:
-		fmt.Printf("analysis enterprise customer %s\n", c.name)
-	}
-}
-
-type Analy struct{}
-
-func (*Analy) Visit(customer Customer) {
-	switch c := customer.(type) {
-	case *EnterpriseCustomer:
-		fmt.Printf("Analy enterprise customer %s\n", c.name)
-	}
-}
+const (
+	B  = 1
+	KB = 1024 * B
+	MB = 1024 * KB
+	GB = 1024 * MB
+)
 
 func main() {
-	c := &CustomerCol{}
-	c.Add(NewEnterpriseCustomer("A company"))
-	c.Add(NewEnterpriseCustomer("B company"))
-	c.Add(NewIndividualCustomer("bob"))
-	c.Add(NewEnterpriseCustomer("judith"))
-	c.Accept(&ServiceRequestVisitor{})
+	DiskCheck()
+	OSCheck()
+	CPUCheck()
+	RAMCheck()
+}
 
+//服务器硬盘使用量
+func DiskCheck() {
+	u, _ := disk.Usage("/")
+	usedMB := int(u.Used) / MB
+	usedGB := int(u.Used) / GB
+	totalMB := int(u.Total) / MB
+	totalGB := int(u.Total) / GB
+	usedPercent := int(u.UsedPercent)
+	fmt.Printf("Free space: %dMB (%dGB) / %dMB (%dGB) | Used: %d%%\n", usedMB, usedGB, totalMB, totalGB, usedPercent)
+}
+
+//OS
+func OSCheck() {
+	fmt.Printf("goOs:%s,compiler:%s,numCpu:%d,version:%s,numGoroutine:%d\n", runtime.GOOS, runtime.Compiler, runtime.NumCPU(), runtime.Version(), runtime.NumGoroutine())
+}
+
+//CPU 使用量
+func CPUCheck() {
+	cores, _ := cpu.Counts(false)
+
+	cpus, err := cpu.Percent(time.Duration(200)*time.Millisecond, true)
+	if err == nil {
+		for i, c := range cpus {
+			fmt.Printf("cpu%d : %f%%\n", i, c)
+		}
+	}
+	a, _ := load.Avg()
+	l1 := a.Load1
+	l5 := a.Load5
+	l15 := a.Load15
+	fmt.Println(l1)
+	fmt.Println(l5)
+	fmt.Println(l15)
+	fmt.Println(cores)
+}
+
+//内存使用量
+func RAMCheck() {
+	u, _ := mem.VirtualMemory()
+	usedMB := int(u.Used) / MB
+	totalMB := int(u.Total) / MB
+	usedPercent := int(u.UsedPercent)
+	fmt.Printf("usedMB:%d,totalMB:%d,usedPercent:%d", usedMB, totalMB, usedPercent)
 }

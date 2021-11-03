@@ -1,6 +1,9 @@
 package easygo
 
 import (
+	"crypto/hmac"
+	"crypto/md5"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -276,4 +279,16 @@ func formatLog(f interface{}, v ...interface{}) string {
 		msg += strings.Repeat(" %v", len(v))
 	}
 	return fmt.Sprintf(msg, v...)
+}
+
+//获取hmac签名
+func GetHmacToken(key string, data interface{}) string {
+	dd, err := json.Marshal(data)
+	if err != nil {
+		fmt.Print(err)
+	}
+	hmac := hmac.New(md5.New, []byte(key))
+	hmac.Write(dd)
+
+	return hex.EncodeToString(hmac.Sum([]byte(key)))
 }
