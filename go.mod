@@ -7,6 +7,7 @@ require (
 	github.com/HdrHistogram/hdrhistogram-go v1.1.2 // indirect
 	github.com/Shopify/sarama v1.29.1
 	github.com/SkyAPM/go2sky v1.2.0
+	github.com/StackExchange/wmi v1.2.1 // indirect
 	github.com/apache/pulsar-client-go v0.6.0
 	github.com/astaxie/beego v1.12.3
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
@@ -25,8 +26,10 @@ require (
 	github.com/rogpeppe/go-internal v1.8.0 // indirect
 	github.com/sasha-s/go-deadlock v0.3.1
 	github.com/satori/go.uuid v1.2.0
+	github.com/shirou/gopsutil v3.21.10+incompatible
 	github.com/smartystreets/goconvey v1.6.4
 	github.com/streadway/amqp v1.0.0
+	github.com/tklauser/go-sysconf v0.3.9 // indirect
 	github.com/uber/jaeger-client-go v2.29.1+incompatible
 	github.com/uber/jaeger-lib v2.4.1+incompatible // indirect
 	go.etcd.io/etcd/client/v3 v3.5.0
